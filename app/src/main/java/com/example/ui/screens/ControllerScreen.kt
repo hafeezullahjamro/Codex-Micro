@@ -94,7 +94,7 @@ fun ControllerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFE2E8F0)), // Grayish background as requested
+            .background(Color(0xFFE4E4E5)), // Grayish background as requested
         contentAlignment = Alignment.Center
     ) {
         // Outer glowing rim
@@ -129,7 +129,7 @@ fun ControllerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFFE2E8F0), RoundedCornerShape(32.dp))
+                    .background(Color(0xFFE4E4E5), RoundedCornerShape(32.dp))
                     .border(2.dp, Color(0xFFCBD5E1), RoundedCornerShape(32.dp))
                     .padding(8.dp)
             ) {
@@ -195,8 +195,8 @@ fun ControllerScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         ImageDial()
-                        ImageTranslucentKey(isLit = true, label = mappings["key_1"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_1") }
-                        ImageTranslucentKey(label = mappings["key_2"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_2") }
+                                                                        ImageTranslucentKey(statusColor = Color(0xFF1DE9B6), label = mappings["key_1"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_1") }
+                        ImageTranslucentKey(statusColor = Color(0xFFFFCA28), label = mappings["key_2"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_2") }
                         ImageJoystick()
                     }
                     
@@ -205,10 +205,10 @@ fun ControllerScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        ImageTranslucentKey(label = mappings["key_3"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_3") }
-                        ImageTranslucentKey(label = mappings["key_4"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_4") }
-                        ImageTranslucentKey(label = mappings["key_5"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_5") }
-                        ImageTranslucentKey(label = mappings["key_6"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_6") }
+                                                                        ImageTranslucentKey(statusColor = Color(0xFF40C4FF), label = mappings["key_3"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_3") }
+                        ImageTranslucentKey(statusColor = Color.White, label = mappings["key_4"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_4") }
+                        ImageTranslucentKey(statusColor = Color(0xFF40C4FF), label = mappings["key_5"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_5") }
+                        ImageTranslucentKey(statusColor = Color(0xFFFF5252), label = mappings["key_6"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_6") }
                     }
                     
                     // Row 3
@@ -219,7 +219,7 @@ fun ControllerScreen(
                         ImageSolidKey(icon = Icons.Default.FlashOn) { triggerFeedback(); viewModel.transmitKeyPress("key_7") }
                         ImageSolidKey(icon = Icons.Default.CheckCircle) { triggerFeedback(); viewModel.transmitKeyPress("key_8") }
                         ImageSolidKey(icon = Icons.Default.Clear) { triggerFeedback(); viewModel.transmitKeyPress("key_9") }
-                        ImageSolidKey(icon = Icons.Default.SyncAlt) { triggerFeedback(); viewModel.transmitKeyPress("key_10") }
+                        ImageSolidKey(icon = Icons.Default.CallSplit) { triggerFeedback(); viewModel.transmitKeyPress("key_10") }
                     }
                     
                     // Row 4
@@ -228,17 +228,17 @@ fun ControllerScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Small black button and LEDs
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                // Small black button and LEDs
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.width(56.dp)) {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 LED(Color.White)
                                 LED(Color.White)
-                                LED(Color.White)
+                                LED(Color.Transparent)
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
+                                    .size(16.dp)
                                     .background(Color.Black, CircleShape)
                             )
                         }
@@ -247,7 +247,7 @@ fun ControllerScreen(
                         ImageDoubleSolidKey(icon = Icons.Default.Mic) { triggerFeedback(); viewModel.transmitKeyPress("key_11") }
                         
                         // Single right key
-                        ImageSolidKey(icon = Icons.Default.Cloud) { triggerFeedback(); viewModel.transmitKeyPress("key_12") }
+                        ImageSolidKey(icon = Icons.Default.Psychology) { triggerFeedback(); viewModel.transmitKeyPress("key_12") }
                     }
                 }
             }
@@ -280,45 +280,66 @@ fun LED(color: Color) {
 
 @Composable
 fun ImageTranslucentKey(
-    isLit: Boolean = false,
+    statusColor: Color? = null,
     label: String? = null,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (isPressed) 0.9f else 1.0f)
+    val scale by animateFloatAsState(if (isPressed) 0.94f else 1.0f)
+    val elevation by animateFloatAsState(if (isPressed) 1f else 4f)
     
-    val bgColor = if (isLit) Color(0x6634D399) else Color(0x11000000)
-    val borderColor = if (isLit) Color(0xAA34D399) else Color(0x11000000)
+    val baseColor = statusColor ?: Color.Transparent
+    val glowColor = if (statusColor != null) statusColor.copy(alpha = 0.6f) else Color(0x11000000)
+    val borderColor = if (statusColor != null) statusColor.copy(alpha = 0.8f) else Color(0x22000000)
 
     Box(
         modifier = Modifier
             .size(56.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .background(bgColor, RoundedCornerShape(14.dp))
-            .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+            .shadow(elevation.dp, RoundedCornerShape(14.dp), spotColor = glowColor, ambientColor = glowColor)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xDDEEFFF0), Color(0xBBFFFFFF))
+                ),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .border(1.dp, borderColor, RoundedCornerShape(14.dp))
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
         contentAlignment = Alignment.Center
     ) {
+        // Inner frosted glow piece
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .background(Color(0xDDFFFFFF), RoundedCornerShape(10.dp)),
+                .size(44.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            if (statusColor != null) statusColor.copy(alpha = 0.95f) else Color(0x44FFFFFF),
+                            if (statusColor != null) statusColor.copy(alpha = 0.3f) else Color(0x11FFFFFF)
+                        ),
+                        radius = 100f
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                .border(0.5.dp, Color(0x44FFFFFF), RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center
         ) {
             if (!label.isNullOrBlank()) {
-                Text(label, color = Color(0xFF7986CB), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center)
+                Text(label, color = Color(0xFF334155), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center)
             } else {
                 Box(
-                    modifier = Modifier.size(20.dp).border(1.5.dp, Color(0xFF7986CB), CircleShape),
+                    modifier = Modifier.size(18.dp).border(1.5.dp, Color(0xFF334155), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("+", color = Color(0xFF7986CB), fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.offset(y = (-1).dp))
+                    Text("+", color = Color(0xFF334155), fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = (-1).dp))
                 }
             }
         }
     }
 }
+
+
 
 
 @Composable
@@ -328,20 +349,42 @@ fun ImageSolidKey(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (isPressed) 0.9f else 1.0f)
+    val scale by animateFloatAsState(if (isPressed) 0.94f else 1.0f)
+    val elevation by animateFloatAsState(if (isPressed) 1f else 6f)
 
     Box(
         modifier = Modifier
             .size(56.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color(0x33000000), ambientColor = Color(0x11000000))
-            .background(Color.White, RoundedCornerShape(16.dp))
+            .shadow(elevation.dp, RoundedCornerShape(16.dp), spotColor = Color(0x33000000), ambientColor = Color(0x11000000))
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.White, Color(0xFFF1F5F9))
+                ),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = Color(0xFF111111), modifier = Modifier.size(24.dp))
+        // Inner indent for the key surface
+        Box(
+            modifier = Modifier
+                .fillMaxSize(0.85f)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFFF8FAFC), Color.White)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .border(0.5.dp, Color(0x11000000), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(0xFF334155), modifier = Modifier.size(24.dp))
+        }
     }
 }
+
 
 
 @Composable
@@ -351,21 +394,44 @@ fun ImageDoubleSolidKey(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (isPressed) 0.9f else 1.0f)
+    val scale by animateFloatAsState(if (isPressed) 0.94f else 1.0f)
+    val elevation by animateFloatAsState(if (isPressed) 1f else 6f)
 
     Box(
         modifier = Modifier
             .height(56.dp)
             .width(128.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color(0x33000000), ambientColor = Color(0x11000000))
-            .background(Color.White, RoundedCornerShape(16.dp))
+            .shadow(elevation.dp, RoundedCornerShape(16.dp), spotColor = Color(0x33000000), ambientColor = Color(0x11000000))
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.White, Color(0xFFF1F5F9))
+                ),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = Color(0xFF111111), modifier = Modifier.size(24.dp))
+        // Inner indent for the key surface
+        Box(
+            modifier = Modifier
+                .fillMaxHeight(0.85f)
+                .fillMaxWidth(0.9f)
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFFF8FAFC), Color.White)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .border(0.5.dp, Color(0x11000000), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Color(0xFF334155), modifier = Modifier.size(24.dp))
+        }
     }
 }
+
 
 
 @Composable
@@ -417,7 +483,7 @@ fun ImageDial(modifier: Modifier = Modifier) {
                     .height(12.dp)
                     .align(Alignment.CenterStart)
                     .offset(x = 8.dp)
-                    .background(Color(0xFFE2E8F0), RoundedCornerShape(6.dp))
+                    .background(Color(0xFFE4E4E5), RoundedCornerShape(6.dp))
             )
         }
     }
