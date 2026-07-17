@@ -1,0 +1,6 @@
+{
+  "name": "Micro Codex Controller",
+  "description": "Virtual micro codex controller that connects over system Bluetooth HID to emulate a physical custom keyboard/mouse layout for shortcuts, dials, and joystick navigation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
