@@ -1,4 +1,6 @@
 package com.example.ui.screens
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.graphics.drawscope.rotate
 
 import android.media.AudioManager
 import android.os.Build
@@ -15,6 +17,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,10 +62,30 @@ fun ControllerScreen(
     val haptic = LocalHapticFeedback.current
     val view = LocalView.current
     val mappings by viewModel.mappings.collectAsState()
-    val ledStates by viewModel.ledStates.collectAsState()
-    val logs by viewModel.transmissionLogs.collectAsState()
+    val connectedDeviceName by viewModel.bluetoothController.connectedDeviceName.collectAsState()
+    val status by viewModel.bluetoothController.status.collectAsState()
+    
+    val isConnected = connectedDeviceName != null || status.contains("Connected") || status.contains("Simulated")
+    val isIdle = !isConnected && (status.contains("Ready") || status.contains("Active"))
+    
+    val targetGlowColor = when {
+        isConnected -> Color(0xFF34D399) // Greenish
+        isIdle -> Color(0xFF40C4FF) // Bluish
+        else -> Color(0xFFEF5350) // Reddish
+    }
+    val glowColor by animateColorAsState(targetValue = targetGlowColor, animationSpec = tween(1000))
+    
+    val infiniteTransition = rememberInfiniteTransition()
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "glowRotation"
+    )
 
-    // Helper to play sound & haptics when a button is clicked
     val triggerFeedback = {
         view.playSoundEffect(SoundEffectConstants.CLICK)
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -68,539 +94,290 @@ fun ControllerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF0F1113)) // Deep obsidian background
-            .padding(16.dp),
+            .background(Color(0xFFE2E8F0)), // Grayish background as requested
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Screen Header Indicator (gives helpful feedback of last sent command)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1A1C1E))
-                    .border(1.dp, Color(0x0DFFFFFF), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                Column {
-                    Text(
-                        text = "MICRO CODEX CHASSIS LINK",
-                        color = Color(0xFF4CAF50),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        letterSpacing = 1.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = logs.firstOrNull() ?: "Offline Bluetooth keyboard initialized.",
-                        color = Color(0x66FFFFFF),
-                        fontSize = 13.sp,
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 1,
-                        modifier = Modifier.testTag("terminal_status")
-                    )
-                }
-            }
-
-            // Outer Translucent Glowing Green Case (1:1 physical outline)
-            Box(
-                modifier = Modifier
-                    .size(370.dp)
-                    .shadow(
-                        elevation = 24.dp,
-                        shape = RoundedCornerShape(32.dp),
-                        clip = false,
-                        ambientColor = Color(0x7F26A69A),
-                        spotColor = Color(0xFFD0BCFF)
-                    )
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0xFF1A1C1E), Color(0xFF1A1C1E), Color(0xFF1A1C1E)),
-                            radius = 600f
-                        ),
-                        shape = RoundedCornerShape(32.dp)
-                    )
-                    .border(
-                        width = 4.dp,
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0x1AFFFFFF), Color(0xFF34D399), Color(0x4400E676))
-                        ),
-                        shape = RoundedCornerShape(32.dp)
-                    )
-                    .padding(14.dp)
-            ) {
-                // Frosted Glass Layer Glow
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0x33D0BCFF), RoundedCornerShape(24.dp))
-                )
-
-                // The Anodized Silver Top Plate with Hex Bolts
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(Color(0xFF1A1C1E), Color(0xFF1A1C1E))
-                            )
-                        )
-                        .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(22.dp))
-                        .padding(12.dp)
-                ) {
-                    // Corner Hex Screws
-                    HexScrew(Modifier.align(Alignment.TopStart))
-                    HexScrew(Modifier.align(Alignment.TopEnd))
-                    HexScrew(Modifier.align(Alignment.BottomStart))
-                    HexScrew(Modifier.align(Alignment.BottomEnd))
-
-                    // Engraved vertical text on Left Margin
-                    Text(
-                        text = "Work Louder | OpenAI 2026",
-                        color = Color(0x8F222825),
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .rotate(-90f)
-                            .offset(y = (-55).dp),
-                        textAlign = TextAlign.Center
-                    )
-
-                    // Engraved vertical text on Right Margin
-                    Text(
-                        text = "You can just build things",
-                        color = Color(0x8F222825),
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .rotate(90f)
-                            .offset(y = (-55).dp),
-                        textAlign = TextAlign.Center
-                    )
-
-                    // Engraved bottom text
-                    Text(
-                        text = "Let's build",
-                        color = Color(0x7F222825),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .offset(y = (-4).dp)
-                    )
-
-                    // Engraved top Arrow
-                    Text(
-                        text = "↑",
-                        color = Color(0x7F222825),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .offset(y = 2.dp)
-                    )
-
-                    // Keyboard Grid (4 rows x 4 columns)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
-                        verticalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        // ROW 1: Knob, Glow Button, Translucent Button, Joystick
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Knob (C1)
-                            SkeuomorphicDial(
-                                onClockwise = {
-                                    triggerFeedback()
-                                    viewModel.transmitKeyPress("knob_cw")
-                                },
-                                onCounterClockwise = {
-                                    triggerFeedback()
-                                    viewModel.transmitKeyPress("knob_ccw")
-                                },
-                                modifier = Modifier.size(54.dp).testTag("rotary_knob")
-                            )
-
-                            // Glowing Cyan Neon Key (C2 - Alt + Space)
-                            TranslucentKeyCap(
-                                keyId = "key_1_2",
-                                hasCyanGlow = true,
-                                label = "Alt+Spc",
-                                onClick = {
-                                    triggerFeedback()
-                                    viewModel.transmitKeyPress("key_1_2")
-                                },
-                                modifier = Modifier.size(52.dp).testTag("key_1_2")
-                            )
-
-                            // Translucent Key (C3 - Ctrl + Shift + P)
-                            TranslucentKeyCap(
-                                keyId = "key_1_3",
-                                label = "Ctrl+P",
-                                onClick = {
-                                    triggerFeedback()
-                                    viewModel.transmitKeyPress("key_1_3")
-                                },
-                                modifier = Modifier.size(52.dp).testTag("key_1_3")
-                            )
-
-                            // 4-Way Black Joystick (C4)
-                            SkeuomorphicJoystick(
-                                onDirectionTriggered = { dir ->
-                                    triggerFeedback()
-                                    val keyId = when (dir) {
-                                        JoystickDirection.LEFT -> "joy_left"
-                                        JoystickDirection.RIGHT -> "joy_right"
-                                        JoystickDirection.UP -> "joy_up"
-                                        JoystickDirection.DOWN -> "joy_down"
-                                    }
-                                    viewModel.transmitKeyPress(keyId)
-                                },
-                                modifier = Modifier.size(54.dp).testTag("joystick_control")
-                            )
-                        }
-
-                        // ROW 2: 4 Translucent Keys
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val keys = listOf(
-                                "key_2_1" to "Ctrl+/",
-                                "key_2_2" to "Ctrl+,",
-                                "key_2_3" to "Ctrl+O",
-                                "key_2_4" to "Ctrl+N"
-                            )
-                            keys.forEach { (id, label) ->
-                                TranslucentKeyCap(
-                                    keyId = id,
-                                    label = label,
-                                    onClick = {
-                                        triggerFeedback()
-                                        viewModel.transmitKeyPress(id)
-                                    },
-                                    modifier = Modifier.size(52.dp).testTag(id)
-                                )
-                            }
-                        }
-
-                        // ROW 3: 4 White Keycaps with crisp symbols
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val solidKeys = listOf(
-                                Triple("key_3_1", "⚡", "Quick Chat"),
-                                Triple("key_3_2", "✔️", "Search Tasks"),
-                                Triple("key_3_3", "⊗", "Find Text"),
-                                Triple("key_3_4", "⤏", "Code Review")
-                            )
-                            solidKeys.forEach { (id, symbol, desc) ->
-                                SolidWhiteKeyCap(
-                                    keyId = id,
-                                    symbol = symbol,
-                                    label = desc,
-                                    onClick = {
-                                        triggerFeedback()
-                                        viewModel.transmitKeyPress(id)
-                                    },
-                                    modifier = Modifier.size(52.dp).testTag(id)
-                                )
-                            }
-                        }
-
-                        // ROW 4: Status/Button, Double-wide spacebar, Brain button
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Column 1 Layout: LEDs and Toggle Button
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 54.dp, height = 52.dp)
-                                    .padding(vertical = 2.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    // Three tiny status LEDs
-                                    Column(
-                                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        ledStates.forEachIndexed { i, active ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .clip(CircleShape)
-                                                    .background(
-                                                        if (active) {
-                                                            when (i) {
-                                                                0 -> Color(0xFF34D399) // LED 1 green
-                                                                1 -> Color(0xFFFFB300) // LED 2 amber
-                                                                else -> Color(0xFF00B0FF) // LED 3 blue
-                                                            }
-                                                        } else Color(0x3F101A15)
-                                                    )
-                                            )
-                                        }
-                                    }
-
-                                    // Black circular button
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                Brush.radialGradient(
-                                                    colors = listOf(Color(0xFF333333), Color(0xFF151515))
-                                                )
-                                            )
-                                            .border(1.dp, Color(0xFF555555), CircleShape)
-                                            .clickable {
-                                                triggerFeedback()
-                                                viewModel.transmitKeyPress("key_4_1")
-                                                viewModel.toggleLed(0)
-                                            }
-                                            .testTag("key_4_1")
-                                    )
-                                }
-                            }
-
-                            // Double-Wide Spacebar with Mic icon (🎤)
-                            DoubleWideMicKeyCap(
-                                keyId = "key_4_2",
-                                onClick = {
-                                    triggerFeedback()
-                                    viewModel.transmitKeyPress("key_4_2")
-                                    viewModel.toggleLed(1)
-                                },
-                                modifier = Modifier
-                                    .width(114.dp)
-                                    .height(52.dp)
-                                    .testTag("key_4_2")
-                            )
-
-                            // Solid White Brain Key (🧠)
-                            SolidWhiteKeyCap(
-                                keyId = "key_4_4",
-                                symbol = "🧠",
-                                label = "New Task Alt",
-                                onClick = {
-                                    triggerFeedback()
-                                    viewModel.transmitKeyPress("key_4_4")
-                                    viewModel.toggleLed(2)
-                                },
-                                modifier = Modifier.size(52.dp).testTag("key_4_4")
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun HexScrew(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .padding(4.dp)
-            .size(10.dp)
-            .clip(CircleShape)
-            .background(Color(0xFF1A1C1E))
-            .border(1.dp, Color(0x8F000000), CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        // Screw inner details
+        // Outer glowing rim
         Box(
             modifier = Modifier
-                .size(6.dp)
-                .clip(RoundedCornerShape(1.dp))
-                .background(Color(0xFF1A1C1E))
-        )
-    }
-}
-
-@Composable
-fun TranslucentKeyCap(
-    keyId: String,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    hasCyanGlow: Boolean = false
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(if (isPressed) 0.92f else 1.0f)
-    val depthOffset by animateDpAsState(if (isPressed) 1.dp else 4.dp)
-
-    Box(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
-    ) {
-        // Glow effect for Key C2
-        if (hasCyanGlow) {
+                .padding(16.dp)
+                .aspectRatio(1f)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(48.dp))
+                .background(Color(0xAAFFFFFF)) // frosted base
+                .drawBehind {
+                    rotate(rotation) {
+                        drawRect(
+                            brush = Brush.sweepGradient(
+                                colors = listOf(
+                                    glowColor.copy(alpha = 0.1f), 
+                                    glowColor.copy(alpha = 0.8f), 
+                                    glowColor.copy(alpha = 0.1f),
+                                    glowColor.copy(alpha = 0.1f)
+                                ),
+                                center = center
+                            ),
+                            size = size.times(2f), // Make it larger to cover corners during rotation
+                            topLeft = Offset(-size.width * 0.5f, -size.height * 0.5f)
+                        )
+                    }
+                }
+                .border(2.dp, Color(0x33FFFFFF), RoundedCornerShape(48.dp))
+                .padding(16.dp) // Gap between outer rim and inner chassis
+        ) {
+            // Inner chassis
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(2.dp)
-                    .shadow(
-                        elevation = 12.dp,
-                        shape = RoundedCornerShape(12.dp),
-                        ambientColor = Color(0xFF34D399),
-                        spotColor = Color(0xFFD0BCFF)
-                    )
-                    .background(Color(0x3300FFD8), RoundedCornerShape(12.dp))
-                    .border(2.dp, Color(0xFFD0BCFF), RoundedCornerShape(12.dp))
-            )
-        }
+                    .background(Color(0xFFE2E8F0), RoundedCornerShape(32.dp))
+                    .border(2.dp, Color(0xFFCBD5E1), RoundedCornerShape(32.dp))
+                    .padding(8.dp)
+            ) {
+                // Screws
+                Screw(Modifier.align(Alignment.TopStart).padding(8.dp))
+                Screw(Modifier.align(Alignment.TopEnd).padding(8.dp))
+                Screw(Modifier.align(Alignment.BottomStart).padding(8.dp))
+                Screw(Modifier.align(Alignment.BottomEnd).padding(8.dp))
 
-        // Shadow representing physical key thickness
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .offset(y = depthOffset)
-                .background(Color(0x7A1A2420), RoundedCornerShape(12.dp))
-        )
-
-        // Frosted Translucent Top
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xE0ECEFEB), Color(0x99DFE4E1))
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                // Text labels
+                Text(
+                    text = "Work Louder | OpenAI 2026",
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset(x = (-30).dp, y = 0.dp)
+                        .rotate(-90f),
+                    fontSize = 10.sp,
+                    color = Color(0xFF64748B),
+                    fontWeight = FontWeight.Medium
                 )
-                .border(1.dp, Color(0xFFBCC2BF), RoundedCornerShape(12.dp)),
+                
+                Text(
+                    text = "You can just build things",
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .offset(x = 30.dp, y = 0.dp)
+                        .rotate(90f),
+                    fontSize = 10.sp,
+                    color = Color(0xFF64748B),
+                    fontWeight = FontWeight.Medium
+                )
+                
+                Text(
+                    text = "↑",
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 10.dp),
+                    fontSize = 16.sp,
+                    color = Color(0xFF64748B)
+                )
+                
+                Text(
+                    text = "Let's build",
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp),
+                    fontSize = 12.sp,
+                    color = Color(0xFF64748B),
+                    fontWeight = FontWeight.Medium
+                )
+
+                // Layout
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Row 1
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        ImageDial()
+                        ImageTranslucentKey(isLit = true, label = mappings["key_1"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_1") }
+                        ImageTranslucentKey(label = mappings["key_2"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_2") }
+                        ImageJoystick()
+                    }
+                    
+                    // Row 2
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        ImageTranslucentKey(label = mappings["key_3"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_3") }
+                        ImageTranslucentKey(label = mappings["key_4"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_4") }
+                        ImageTranslucentKey(label = mappings["key_5"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_5") }
+                        ImageTranslucentKey(label = mappings["key_6"]?.name) { triggerFeedback(); viewModel.transmitKeyPress("key_6") }
+                    }
+                    
+                    // Row 3
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        ImageSolidKey(icon = Icons.Default.FlashOn) { triggerFeedback(); viewModel.transmitKeyPress("key_7") }
+                        ImageSolidKey(icon = Icons.Default.CheckCircle) { triggerFeedback(); viewModel.transmitKeyPress("key_8") }
+                        ImageSolidKey(icon = Icons.Default.Clear) { triggerFeedback(); viewModel.transmitKeyPress("key_9") }
+                        ImageSolidKey(icon = Icons.Default.SyncAlt) { triggerFeedback(); viewModel.transmitKeyPress("key_10") }
+                    }
+                    
+                    // Row 4
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Small black button and LEDs
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                LED(Color.White)
+                                LED(Color.White)
+                                LED(Color.White)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(Color.Black, CircleShape)
+                            )
+                        }
+                        
+                        // Double wide mic key
+                        ImageDoubleSolidKey(icon = Icons.Default.Mic) { triggerFeedback(); viewModel.transmitKeyPress("key_11") }
+                        
+                        // Single right key
+                        ImageSolidKey(icon = Icons.Default.Cloud) { triggerFeedback(); viewModel.transmitKeyPress("key_12") }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun Screw(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(16.dp)
+            .background(Color(0xFF333333), CircleShape)
+            .border(1.dp, Color(0xFF111111), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(modifier = Modifier.size(8.dp).border(1.5.dp, Color(0xFF111111), CircleShape))
+    }
+}
+
+@Composable
+fun LED(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(6.dp, 3.dp)
+            .background(color, RoundedCornerShape(1.dp))
+            .border(0.5.dp, Color.Black, RoundedCornerShape(1.dp))
+    )
+}
+
+@Composable
+fun ImageTranslucentKey(
+    isLit: Boolean = false,
+    label: String? = null,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (isPressed) 0.9f else 1.0f)
+    
+    val bgColor = if (isLit) Color(0x6634D399) else Color(0x11000000)
+    val borderColor = if (isLit) Color(0xAA34D399) else Color(0x11000000)
+
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .background(bgColor, RoundedCornerShape(14.dp))
+            .border(2.dp, borderColor, RoundedCornerShape(14.dp))
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(Color(0xDDFFFFFF), RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center
         ) {
-            // Blue cross stem under translucent housing
-            Box(
-                modifier = Modifier
-                    .size(16.dp)
-                    .drawBehind {
-                        // Draw a plus (+) symbol
-                        drawLine(
-                            color = Color(0xFF3F51B5),
-                            start = Offset(0f, size.height / 2),
-                            end = Offset(size.width, size.height / 2),
-                            strokeWidth = 3.dp.toPx()
-                        )
-                        drawLine(
-                            color = Color(0xFF3F51B5),
-                            start = Offset(size.width / 2, 0f),
-                            end = Offset(size.width / 2, size.height),
-                            strokeWidth = 3.dp.toPx()
-                        )
-                    }
-            )
-
-            // Label text over everything
-            Text(
-                text = label,
-                color = Color(0xFF1E2824),
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 2.dp)
-            )
+            if (!label.isNullOrBlank()) {
+                Text(label, color = Color(0xFF7986CB), fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, textAlign = TextAlign.Center)
+            } else {
+                Box(
+                    modifier = Modifier.size(20.dp).border(1.5.dp, Color(0xFF7986CB), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", color = Color(0xFF7986CB), fontSize = 16.sp, fontWeight = FontWeight.Medium, modifier = Modifier.offset(y = (-1).dp))
+                }
+            }
         }
     }
 }
 
+
 @Composable
-fun SolidWhiteKeyCap(
-    keyId: String,
-    symbol: String,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+fun ImageSolidKey(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (isPressed) 0.95f else 1.0f)
+    val scale by animateFloatAsState(if (isPressed) 0.9f else 1.0f)
 
     Box(
-        modifier = modifier
+        modifier = Modifier
+            .size(56.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .background(Color(0xFFD0BCFF), RoundedCornerShape(24.dp))
+            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color(0x33000000), ambientColor = Color(0x11000000))
+            .background(Color.White, RoundedCornerShape(16.dp))
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(text = symbol, fontSize = 18.sp, color = Color(0xFF381E72))
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = label, fontSize = 10.sp, color = Color(0xFF381E72), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-        }
+        Icon(icon, contentDescription = null, tint = Color(0xFF111111), modifier = Modifier.size(24.dp))
     }
 }
+
+
 @Composable
-fun DoubleWideMicKeyCap(
-    keyId: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+fun ImageDoubleSolidKey(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (isPressed) 0.95f else 1.0f)
+    val scale by animateFloatAsState(if (isPressed) 0.9f else 1.0f)
 
     Box(
-        modifier = modifier
+        modifier = Modifier
+            .height(56.dp)
+            .width(128.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .background(Color(0xFF2D2F31), RoundedCornerShape(24.dp))
-            .border(1.dp, Color(0x0DFFFFFF), RoundedCornerShape(24.dp))
+            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color(0x33000000), ambientColor = Color(0x11000000))
+            .background(Color.White, RoundedCornerShape(16.dp))
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(text = "🎤", fontSize = 18.sp, color = Color.White)
-        }
+        Icon(icon, contentDescription = null, tint = Color(0xFF111111), modifier = Modifier.size(24.dp))
     }
 }
+
+
 @Composable
-fun SkeuomorphicDial(
-    onClockwise: () -> Unit,
-    onCounterClockwise: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var rotationAngle by remember { mutableStateOf(45f) }
+fun ImageDial(modifier: Modifier = Modifier) {
+    var rotationAngle by remember { mutableStateOf(-45f) }
     var lastAngle by remember { mutableStateOf(0f) }
 
     Box(
         modifier = modifier
-            .background(Color(0xFF1A1C1E), CircleShape)
-            .border(1.dp, Color(0x1AFFFFFF), CircleShape)
+            .size(56.dp)
+            .shadow(6.dp, CircleShape, spotColor = Color(0x44000000), ambientColor = Color(0x22000000))
+            .background(Color.White, CircleShape)
             .pointerInput(Unit) {
                 detectDragGestures(
                     onDragStart = { offset ->
@@ -622,11 +399,8 @@ fun SkeuomorphicDial(
                         if (delta < -180f) delta += 360f
                         if (delta > 180f) delta -= 360f
 
-                        if (abs(delta) > 20f) {
-                            if (delta > 0) onClockwise() else onCounterClockwise()
-                            rotationAngle = (rotationAngle + delta) % 360f
-                            lastAngle = currentAngle
-                        }
+                        rotationAngle = (rotationAngle + delta) % 360f
+                        lastAngle = currentAngle
                     }
                 )
             },
@@ -634,110 +408,95 @@ fun SkeuomorphicDial(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize(0.6f)
+                .fillMaxSize()
                 .rotate(rotationAngle)
-                .background(Color(0xFF2D2F31), CircleShape)
-                .border(2.dp, Color(0xFF1A1C1E), CircleShape)
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxHeight(0.5f)
-                    .width(4.dp)
-                    .align(Alignment.TopCenter)
-                    .background(Color(0xFFD0BCFF), RoundedCornerShape(2.dp))
+                    .fillMaxWidth(0.5f)
+                    .height(12.dp)
+                    .align(Alignment.CenterStart)
+                    .offset(x = 8.dp)
+                    .background(Color(0xFFE2E8F0), RoundedCornerShape(6.dp))
             )
         }
     }
 }
+
+
 enum class JoystickDirection { LEFT, RIGHT, UP, DOWN }
 
 @Composable
-fun SkeuomorphicJoystick(
-    onDirectionTriggered: (JoystickDirection) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val maxRadiusPx = 50f
+fun ImageJoystick(modifier: Modifier = Modifier) {
     val stickOffset = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
-    var triggeredThisDrag = remember { mutableStateOf<JoystickDirection?>(null) }
     val scope = rememberCoroutineScope()
+    val maxRadiusPx = 20f
 
     Box(
         modifier = modifier
-            .background(Color(0xFF1A1C1E), CircleShape)
-            .border(1.dp, Color(0x1AFFFFFF), CircleShape)
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = {
-                        triggeredThisDrag.value = null
-                    },
-                    onDragEnd = {
-                        scope.launch {
-                            stickOffset.animateTo(Offset.Zero, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
-                        }
-                        triggeredThisDrag.value = null
-                    },
-                    onDragCancel = {
-                        scope.launch {
-                            stickOffset.animateTo(Offset.Zero, spring())
-                        }
-                        triggeredThisDrag.value = null
-                    },
-                    onDrag = { change, dragAmount ->
-                        val combined = stickOffset.value + dragAmount
-                        val length = sqrt(combined.x * combined.x + combined.y * combined.y)
-
-                        val limited = if (length > maxRadiusPx) {
-                            Offset(
-                                (combined.x / length) * maxRadiusPx,
-                                (combined.y / length) * maxRadiusPx
-                            )
-                        } else {
-                            combined
-                        }
-
-                        scope.launch {
-                            stickOffset.snapTo(limited)
-                        }
-
-                        val threshold = maxRadiusPx * 0.7f
-                        if (length > threshold && triggeredThisDrag.value == null) {
-                            val angle = Math.toDegrees(atan2(limited.y.toDouble(), limited.x.toDouble()))
-                            val direction = when {
-                                angle >= -45 && angle < 45 -> JoystickDirection.RIGHT
-                                angle >= 45 && angle < 135 -> JoystickDirection.DOWN
-                                angle >= -135 && angle < -45 -> JoystickDirection.UP
-                                else -> JoystickDirection.LEFT
-                            }
-                            triggeredThisDrag.value = direction
-                            onDirectionTriggered(direction)
-                        } else if (length < threshold * 0.3f) {
-                            triggeredThisDrag.value = null
-                        }
-                    }
-                )
-            },
+            .size(56.dp)
+            .background(Color.White, RoundedCornerShape(12.dp))
+            .border(2.dp, Color(0xFF111111), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Box(modifier = Modifier.fillMaxSize(0.8f).border(1.dp, Color(0x0DFFFFFF), CircleShape))
+        // Striped border pattern
+        Canvas(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))) {
+            val step = 8f
+            for (i in 0..100 step 8) {
+                drawLine(
+                    color = Color.Black,
+                    start = Offset(0f, i.toFloat()),
+                    end = Offset(size.width, i.toFloat()),
+                    strokeWidth = 2f
+                )
+                drawLine(
+                    color = Color.Black,
+                    start = Offset(i.toFloat(), 0f),
+                    end = Offset(i.toFloat(), size.height),
+                    strokeWidth = 2f
+                )
+            }
+        }
         
         Box(
             modifier = Modifier
-                .offset {
-                    IntOffset(
-                        stickOffset.value.x.roundToInt(),
-                        stickOffset.value.y.roundToInt()
+                .fillMaxSize()
+                .background(Color(0xDDFFFFFF), RoundedCornerShape(10.dp))
+        )
+        
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(stickOffset.value.x.roundToInt(), stickOffset.value.y.roundToInt()) }
+                .size(46.dp)
+                .shadow(8.dp, CircleShape, spotColor = Color.Black)
+                .background(Color(0xFF222222), CircleShape)
+                .border(2.dp, Color(0xFF111111), CircleShape)
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragEnd = {
+                            scope.launch { stickOffset.animateTo(Offset.Zero, spring()) }
+                        },
+                        onDragCancel = {
+                            scope.launch { stickOffset.animateTo(Offset.Zero, spring()) }
+                        },
+                        onDrag = { _, dragAmount ->
+                            val combined = stickOffset.value + dragAmount
+                            val length = sqrt(combined.x * combined.x + combined.y * combined.y)
+                            val limited = if (length > maxRadiusPx) {
+                                Offset((combined.x / length) * maxRadiusPx, (combined.y / length) * maxRadiusPx)
+                            } else combined
+                            scope.launch { stickOffset.snapTo(limited) }
+                        }
                     )
-                }
-                .size(64.dp)
-                .background(Color(0xFFD0BCFF), CircleShape)
-                .border(4.dp, Color(0xFF1A1C1E), CircleShape),
+                },
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(16.dp)
-                    .background(Color(0xFF381E72), CircleShape)
-            )
+            // Little dpad indents on the black stick
+            Icon(Icons.Default.KeyboardArrowUp, null, tint = Color(0xFF444444), modifier = Modifier.align(Alignment.TopCenter).size(14.dp).offset(y = 2.dp))
+            Icon(Icons.Default.KeyboardArrowDown, null, tint = Color(0xFF444444), modifier = Modifier.align(Alignment.BottomCenter).size(14.dp).offset(y = (-2).dp))
+            Icon(Icons.Default.KeyboardArrowLeft, null, tint = Color(0xFF444444), modifier = Modifier.align(Alignment.CenterStart).size(14.dp).offset(x = 2.dp))
+            Icon(Icons.Default.KeyboardArrowRight, null, tint = Color(0xFF444444), modifier = Modifier.align(Alignment.CenterEnd).size(14.dp).offset(x = (-2).dp))
         }
     }
 }
+
